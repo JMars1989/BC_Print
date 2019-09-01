@@ -22,11 +22,35 @@ async function handler() {
         await writeFile('tokenData.json', res);
 
     } catch (err) {
-        console.log(err);
+        //console.log(err);
         console.log("something went wrong");
-
         //If here, either there was no token in the file or the token had errors. So use client id and secret to get new set of tokens.
-        ifRtokenFails();
+
+        try{
+            //Use client id and secret to obtain new set of tokens
+            let options = {
+                method: 'POST',
+                url: 'https://bandcamp.com/oauth_token',
+                form: {
+                    'grant_type': 'client_credentials',
+                    client_id: config.client_id,
+                    client_secret: config.client_secret
+                }
+            };
+
+            let newTokenData = await request(options);
+
+            //Store new token data in file
+            await writeFile('tokenData.json', newTokenData);
+
+            //Restart handler
+            handler();
+ 
+        } catch(err){
+            console.log(err);
+            console.log("Something went wrong trying to get new set of tokens.");
+        }
+
     }
     //Now that tokens are settled, use one to get orders from bandcamp
     try {
@@ -89,28 +113,6 @@ function getNewTokens(res) {
     };
     return options;
 };
-
-//Uses clinet info to obtain new set of tokens from Bandcamp.
-//Only called if no valid token is available. 
-function ifRtokenFails() {
-    var options = {
-        method: 'POST',
-        url: 'https://bandcamp.com/oauth_token',
-        form: {
-            'grant_type': 'client_credentials',
-            client_id: config.client_id,
-            client_secret: config.client_secret
-        }
-    };
-    //return options;
-    request(options)
-        .then(function (res) {
-            console.log(res);
-            fs.writeFileSync('tokenData.json', res);
-        }).then(function () {
-            console.log("Everything good!")
-        });
-}
 
 //Passed token json, returns options to be used to get orders from bandcamp. 
 function getBandcampOrders(res) {
